@@ -1,0 +1,82 @@
+SELECT *
+FROM 'agricultural-water-withdrawals-vs-gdp-per-capita'
+WHERE field3 &amp;gt; 1950
+   AND field4 is not NULL
+\\Looking at countries with the highest freshwater withdrawal rate
+SELECT field1, field2, field3, MAX(field4) as HighestWithdrawlPercent, field5, field6, field7
+FROM 'agricultural-water-withdrawals-vs-gdp-per-capita'
+WHERE field3 > 1950
+   AND field4 is not NULL
+GROUP BY field1,field3
+ORDER BY HighestWithdrawlPercent DESC
+
+\\Grouping things by country
+SELECT field1, MAX(CAST(field4 as INT)) as HighestWithdrawlPercent
+FROM 'agricultural-water-withdrawals-vs-gdp-per-capita'
+where field7 is null
+GROUP BY field1
+Order by HighestWithdrawlPercent DESC
+
+\\Joining the two tables
+SELECT *
+FROM 'agricultural-water-withdrawals-vs-gdp-per-capita' aww
+JOIN 'renewable-water-resources-per-capita' rww
+  ON aww.field1 = rww.field1
+  AND aww.field3 = rww.field3
+
+//Cumulative Renewable Water Resource per year for each country  
+SELECT aww.field1, aww.field2, aww.field3, aww.field4, aww.field5, aww.field6, aww.field7, rww.field4
+  , SUM(rww.field4) OVER (Partition by aww.field1 Order by aww.field1, aww.field3) as RollingRenewableWater
+FROM 'agricultural-water-withdrawals-vs-gdp-per-capita' aww
+JOIN 'renewable-water-resources-per-capita' rww
+  ON aww.field1 = rww.field1
+  AND aww.field3 = rww.field3
+
+//Using CTE to perform Calculation on Partition By in previous QUERY
+WITH PopVsRww (field1, field2, field3, field4, field5, field6, field7, field4, RollingRenewableWater)
+AS
+(
+SELECT aww.field1, aww.field2, aww.field3, aww.field4, aww.field5, aww.field6, aww.field7, rww.field4
+  , SUM(rww.field4) OVER (Partition by aww.field1 Order by aww.field1, aww.field3) as RollingRenewableWater
+FROM 'agricultural-water-withdrawals-vs-gdp-per-capita' aww
+JOIN 'renewable-water-resources-per-capita' rww
+  ON aww.field1 = rww.field1
+  AND aww.field3 = rww.field3
+)
+SELECT *, (RollingRenewableWater/field6)*100
+FROM PopVsRww
+
+\\Using Temp Table to perform Calculation on Partition By in previous query
+Drop TEMPORARY Table if exists WaterResources
+Create TEMPORARY Table WaterResources (
+Country nvarchar(255),
+Code nvarchar(255),
+Year numeric,
+Withdrawl numeric,
+GDP numeric,
+Population numeric,
+Continent nvarchar(255),
+WaterResources numeric,
+RollingRenewableWater numeric
+);
+INSERT INTO WaterResources
+SELECT aww.field1, aww.field2, aww.field3, aww.field4, aww.field5, aww.field6, aww.field7, rww.field4
+  , SUM(rww.field4) OVER (Partition by aww.field1 Order by aww.field1, aww.field3) as RollingRenewableWater
+FROM 'agricultural-water-withdrawals-vs-gdp-per-capita' aww
+JOIN 'renewable-water-resources-per-capita' rww
+  ON aww.field1 = rww.field1
+  AND aww.field3 = rww.field3
+SELECT *, (RollingRenewableWater/Population)*100
+FROM WaterResources
+
+\\ Creating View to store data for later visualizations
+CREATE VIEW WaterResources as
+SELECT aww.field1, aww.field2, aww.field3, aww.field4, aww.field5, aww.field6, aww.field7, rww.field4
+  , SUM(rww.field4) OVER (Partition by aww.field1 Order by aww.field1, aww.field3) as RollingRenewableWater,
+  (RollingRenewableWater/Population)*100 WaterPercent
+FROM 'agricultural-water-withdrawals-vs-gdp-per-capita' aww
+JOIN 'renewable-water-resources-per-capita' rww
+  ON aww.field1 = rww.field1
+  AND aww.field3 = rww.field3</sql><current_tab id="0"/></tab_sql></sqlb_project>
+
+
